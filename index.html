@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monty Hall Problem - Interactive Simulator & Visualizer</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Canvas Confetti for Win Effects -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <!-- Font Setup -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom CSS animations and 3D Door flip mechanics */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .preserve-3d {
+      transform-style: preserve-3d;
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+    .door-transition {
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* Glow effect for selected door */
+    .door-glow-selected {
+      box-shadow: 0 0 25px rgba(99, 102, 241, 0.6);
+    }
+    .door-glow-winner {
+      box-shadow: 0 0 30px rgba(34, 197, 94, 0.8);
+    }
+    .door-glow-loser {
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+    }
+  </style>
+</head>
+<body class="min-h-full flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white pb-12">
+
+  <!-- Navigation Header -->
+  <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-brand-600/20 text-brand-400 rounded-xl border border-brand-500/30">
+          <i data-lucide="sparkles" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-tight">Monty Hall Lab</h1>
+          <p class="text-xs text-slate-400">Interactive Probability & Intuition Simulator</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <a href="#interactive-mode" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition">Interactive Game</a>
+        <a href="#sim-mode" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition">Fast Simulator</a>
+        <a href="#n-doors-mode" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition">100 Doors Intuition</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 flex-1 w-full space-y-12">
+
+    <!-- SECTION 1: Interactive Door Game -->
+    <section id="interactive-mode" class="scroll-mt-20">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+        
+        <!-- Header & Status Bar -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/60 pb-6 mb-8">
+          <div>
+            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-semibold uppercase tracking-wider mb-2">
+              <span>Stage 1</span>
+              <span>•</span>
+              <span id="game-step-indicator">Step 1 of 3: Make Your Choice</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Interactive Monty Hall Game</h2>
+            <p id="host-dialogue" class="text-slate-300 mt-1 text-sm sm:text-base">
+              Welcome to the game! Behind one door is a brand new <strong class="text-emerald-400">Sports Car 🚗</strong>, and behind the other two are <strong class="text-amber-400">Goats 🐐</strong>. Click a door to pick!
+            </p>
+          </div>
+          <button id="reset-game-btn" class="self-start md:self-center inline-flex items-center space-x-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold rounded-xl text-sm transition shadow-sm active:scale-95">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            <span>New Round</span>
+          </button>
+        </div>
+
+        <!-- Doors Container -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 max-w-4xl mx-auto my-8">
+          
+          <!-- DOOR 1 -->
+          <div class="door-card-wrapper perspective-1000 h-64 sm:h-80 cursor-pointer group" onclick="handleDoorClick(0)">
+            <div id="door-inner-0" class="door-transition preserve-3d relative w-full h-full rounded-2xl border-2 border-slate-600 bg-slate-800/80 shadow-xl overflow-hidden">
+              <!-- FRONT OF DOOR -->
+              <div class="backface-hidden absolute inset-0 flex flex-col items-center justify-between p-6 bg-gradient-to-b from-slate-700 to-slate-800 group-hover:border-brand-500/50 transition">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 px-3 py-1 rounded-full border border-slate-700">Door 1</span>
+                <div class="w-16 h-16 rounded-full bg-slate-900/50 border border-slate-600/50 flex items-center justify-center text-3xl font-black text-slate-300 shadow-inner group-hover:scale-110 group-hover:border-brand-400 transition">
+                  1
+                </div>
+                <div class="w-4 h-4 rounded-full bg-amber-500/80 border border-amber-300 shadow-md self-end mb-2 mr-2"></div>
+              </div>
+              <!-- BACK OF DOOR (Reveal Content) -->
+              <div id="door-back-0" class="rotate-y-180 backface-hidden absolute inset-0 flex flex-col items-center justify-center p-6 bg-slate-900 border-2 border-slate-700 rounded-2xl">
+                <div id="door-prize-icon-0" class="text-6xl sm:text-7xl mb-2 animate-bounce">🚗</div>
+                <span id="door-prize-text-0" class="text-sm font-bold text-slate-200 uppercase tracking-wide">Sports Car</span>
+              </div>
+            </div>
+            <div id="door-badge-0" class="text-center mt-3 h-6 text-xs font-semibold px-2 py-0.5 rounded-full transition-all opacity-0">Selected</div>
+          </div>
+
+          <!-- DOOR 2 -->
+          <div class="door-card-wrapper perspective-1000 h-64 sm:h-80 cursor-pointer group" onclick="handleDoorClick(1)">
+            <div id="door-inner-1" class="door-transition preserve-3d relative w-full h-full rounded-2xl border-2 border-slate-600 bg-slate-800/80 shadow-xl overflow-hidden">
+              <!-- FRONT OF DOOR -->
+              <div class="backface-hidden absolute inset-0 flex flex-col items-center justify-between p-6 bg-gradient-to-b from-slate-700 to-slate-800 group-hover:border-brand-500/50 transition">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 px-3 py-1 rounded-full border border-slate-700">Door 2</span>
+                <div class="w-16 h-16 rounded-full bg-slate-900/50 border border-slate-600/50 flex items-center justify-center text-3xl font-black text-slate-300 shadow-inner group-hover:scale-110 group-hover:border-brand-400 transition">
+                  2
+                </div>
+                <div class="w-4 h-4 rounded-full bg-amber-500/80 border border-amber-300 shadow-md self-end mb-2 mr-2"></div>
+              </div>
+              <!-- BACK OF DOOR -->
+              <div id="door-back-1" class="rotate-y-180 backface-hidden absolute inset-0 flex flex-col items-center justify-center p-6 bg-slate-900 border-2 border-slate-700 rounded-2xl">
+                <div id="door-prize-icon-1" class="text-6xl sm:text-7xl mb-2 animate-bounce">🐐</div>
+                <span id="door-prize-text-1" class="text-sm font-bold text-slate-200 uppercase tracking-wide">Goat</span>
+              </div>
+            </div>
+            <div id="door-badge-1" class="text-center mt-3 h-6 text-xs font-semibold px-2 py-0.5 rounded-full transition-all opacity-0">Selected</div>
+          </div>
+
+          <!-- DOOR 3 -->
+          <div class="door-card-wrapper perspective-1000 h-64 sm:h-80 cursor-pointer group" onclick="handleDoorClick(2)">
+            <div id="door-inner-2" class="door-transition preserve-3d relative w-full h-full rounded-2xl border-2 border-slate-600 bg-slate-800/80 shadow-xl overflow-hidden">
+              <!-- FRONT OF DOOR -->
+              <div class="backface-hidden absolute inset-0 flex flex-col items-center justify-between p-6 bg-gradient-to-b from-slate-700 to-slate-800 group-hover:border-brand-500/50 transition">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 px-3 py-1 rounded-full border border-slate-700">Door 3</span>
+                <div class="w-16 h-16 rounded-full bg-slate-900/50 border border-slate-600/50 flex items-center justify-center text-3xl font-black text-slate-300 shadow-inner group-hover:scale-110 group-hover:border-brand-400 transition">
+                  3
+                </div>
+                <div class="w-4 h-4 rounded-full bg-amber-500/80 border border-amber-300 shadow-md self-end mb-2 mr-2"></div>
+              </div>
+              <!-- BACK OF DOOR -->
+              <div id="door-back-2" class="rotate-y-180 backface-hidden absolute inset-0 flex flex-col items-center justify-center p-6 bg-slate-900 border-2 border-slate-700 rounded-2xl">
+                <div id="door-prize-icon-2" class="text-6xl sm:text-7xl mb-2 animate-bounce">🐐</div>
+                <span id="door-prize-text-2" class="text-sm font-bold text-slate-200 uppercase tracking-wide">Goat</span>
+              </div>
+            </div>
+            <div id="door-badge-2" class="text-center mt-3 h-6 text-xs font-semibold px-2 py-0.5 rounded-full transition-all opacity-0">Selected</div>
+          </div>
+
+        </div>
+
+        <!-- Decision Prompt Actions (Stay vs Switch Controls) -->
+        <div id="decision-panel" class="hidden max-w-xl mx-auto bg-slate-900/90 border border-brand-500/40 p-6 rounded-2xl text-center shadow-2xl space-y-4 animate-fade-in">
+          <h3 class="text-lg font-bold text-white">Do you want to STAY or SWITCH?</h3>
+          <p class="text-xs text-slate-400">The host revealed a goat. You can keep your initial selection or switch to the remaining unopened door.</p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <button id="stay-btn" onclick="makeFinalDecision(false)" class="w-full sm:w-auto px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold rounded-xl transition flex items-center justify-center space-x-2 active:scale-95">
+              <i data-lucide="lock" class="w-4 h-4 text-slate-400"></i>
+              <span id="stay-btn-text">STAY with Door 1</span>
+            </button>
+            <button id="switch-btn" onclick="makeFinalDecision(true)" class="w-full sm:w-auto px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl transition shadow-lg shadow-brand-600/30 flex items-center justify-center space-x-2 active:scale-95">
+              <i data-lucide="arrow-right-left" class="w-4 h-4"></i>
+              <span id="switch-btn-text">SWITCH to Door 2</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Manual Score Tally -->
+        <div class="mt-8 pt-6 border-t border-slate-700/60 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+            <span class="text-xs text-slate-400 block font-medium">Stay Games</span>
+            <span id="manual-stay-count" class="text-xl font-bold text-white">0</span>
+          </div>
+          <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+            <span class="text-xs text-slate-400 block font-medium">Stay Win %</span>
+            <span id="manual-stay-pct" class="text-xl font-bold text-slate-300">0%</span>
+          </div>
+          <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+            <span class="text-xs text-slate-400 block font-medium">Switch Games</span>
+            <span id="manual-switch-count" class="text-xl font-bold text-white">0</span>
+          </div>
+          <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+            <span class="text-xs text-slate-400 block font-medium">Switch Win %</span>
+            <span id="manual-switch-pct" class="text-xl font-bold text-brand-400">0%</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 2: Automated Fast Simulator -->
+    <section id="sim-mode" class="scroll-mt-20">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-700/60 pb-6">
+          <div>
+            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">
+              <span>Statistical Proof</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Automated Monte Carlo Simulator</h2>
+            <p class="text-slate-300 text-sm sm:text-base mt-1">Run thousands of automated games instantly to observe the Law of Large Numbers in action.</p>
+          </div>
+          
+          <!-- Controls -->
+          <div class="flex flex-wrap items-center gap-3">
+            <select id="sim-batch-size" class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2.5 font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+              <option value="10">10 Rounds</option>
+              <option value="100" selected>100 Rounds</option>
+              <option value="1000">1,000 Rounds</option>
+              <option value="10000">10,000 Rounds</option>
+            </select>
+            <button id="run-sim-btn" onclick="runAutomatedSimulation()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-emerald-600/20 flex items-center space-x-2 active:scale-95">
+              <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+              <span>Run Simulation</span>
+            </button>
+            <button onclick="resetSimStats()" class="px-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold rounded-xl text-sm transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Simulator Live Comparison Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 my-6">
+          
+          <!-- STAY STRATEGY STATS -->
+          <div class="bg-slate-900/80 p-6 rounded-2xl border border-slate-700/80 space-y-4">
+            <div class="flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-lg text-slate-200">"Always Stay" Strategy</h3>
+                <p class="text-xs text-slate-400">Theoretical Probability: 33.33% (1/3)</p>
+              </div>
+              <span id="sim-stay-pct-label" class="text-2xl font-black text-slate-300">0.0%</span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-800 h-4 rounded-full overflow-hidden border border-slate-700 relative">
+              <!-- Benchmark Line at 33.33% -->
+              <div class="absolute top-0 bottom-0 left-[33.33%] w-0.5 bg-amber-400 z-10 opacity-70" title="Theoretical 33.33%"></div>
+              <div id="sim-stay-bar" class="bg-slate-500 h-full w-0 transition-all duration-500 rounded-full"></div>
+            </div>
+
+            <div class="flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-800">
+              <span>Total Stay Trials: <strong id="sim-stay-total" class="text-slate-200">0</strong></span>
+              <span>Wins: <strong id="sim-stay-wins" class="text-slate-200">0</strong></span>
+            </div>
+          </div>
+
+          <!-- SWITCH STRATEGY STATS -->
+          <div class="bg-slate-900/80 p-6 rounded-2xl border border-brand-500/30 space-y-4">
+            <div class="flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-lg text-brand-300">"Always Switch" Strategy</h3>
+                <p class="text-xs text-slate-400">Theoretical Probability: 66.67% (2/3)</p>
+              </div>
+              <span id="sim-switch-pct-label" class="text-2xl font-black text-brand-400">0.0%</span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-800 h-4 rounded-full overflow-hidden border border-slate-700 relative">
+              <!-- Benchmark Line at 66.67% -->
+              <div class="absolute top-0 bottom-0 left-[66.67%] w-0.5 bg-amber-400 z-10 opacity-70" title="Theoretical 66.67%"></div>
+              <div id="sim-switch-bar" class="bg-brand-500 h-full w-0 transition-all duration-500 rounded-full"></div>
+            </div>
+
+            <div class="flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-800">
+              <span>Total Switch Trials: <strong id="sim-switch-total" class="text-slate-200">0</strong></span>
+              <span>Wins: <strong id="sim-switch-wins" class="text-brand-300">0</strong></span>
+            </div>
+          </div>
+
+        </div>
+        
+        <p class="text-xs text-center text-slate-400 italic">
+          <i data-lucide="info" class="w-3.5 h-3.5 inline mr-1 text-slate-400"></i>
+          Notice how the switch strategy consistently lands right around 66.7% as your sample size grows larger!
+        </p>
+
+      </div>
+    </section>
+
+    <!-- SECTION 3: N-Doors Thought Experiment -->
+    <section id="n-doors-mode" class="scroll-mt-20">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-6">
+        <div>
+          <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold uppercase tracking-wider mb-2">
+            <span>Intuition Unlock</span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-white">The "100 Doors" Thought Experiment</h2>
+          <p class="text-slate-300 text-sm sm:text-base mt-1">
+            Why is switching so beneficial? Scaling up the number of doors makes the math intuitively obvious.
+          </p>
+        </div>
+
+        <!-- Slider Control -->
+        <div class="bg-slate-900/80 p-6 rounded-2xl border border-slate-700 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <label for="door-count-slider" class="font-bold text-slate-200 text-sm sm:text-base">
+              Number of Doors on Stage: <span id="door-count-display" class="text-brand-400 text-xl font-black">100</span>
+            </label>
+            <span class="text-xs text-slate-400">Drag slider to test 3 to 100 doors</span>
+          </div>
+          <input id="door-count-slider" type="range" min="3" max="100" value="100" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-500" oninput="updateNDoorsVisualization(this.value)">
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-xs sm:text-sm">
+            <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+              <span class="text-slate-400 block font-medium">Your First Pick Chance:</span>
+              <span id="n-door-initial-pct" class="text-lg font-bold text-amber-400">1.0% (1/100)</span>
+            </div>
+            <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+              <span class="text-slate-400 block font-medium">Remaining Unopened Door Chance (Switching):</span>
+              <span id="n-door-switch-pct" class="text-lg font-bold text-emerald-400">99.0% (99/100)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Grid of Doors -->
+        <div id="n-doors-grid" class="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto p-4 bg-slate-950/60 rounded-2xl border border-slate-800 justify-center">
+          <!-- Doors dynamically generated here -->
+        </div>
+
+        <div class="bg-brand-950/40 border border-brand-500/30 p-4 rounded-xl text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2">
+          <p class="font-semibold text-brand-300 flex items-center space-x-2">
+            <i data-lucide="lightbulb" class="w-4 h-4 text-brand-400"></i>
+            <span>The Takeaway:</span>
+          </p>
+          <p id="n-doors-explanation">
+            With 100 doors, picking the car on your first attempt is extremely unlikely (1%). When the host opens 98 doors containing goats, they intentionally filter out almost all bad choices. All that probability (99%) is now concentrated in the one remaining unopened door!
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 4: Educational Breakdown -->
+    <section class="scroll-mt-20">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-6">
+        <h2 class="text-2xl font-extrabold text-white">Mathematical Explanation</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+          <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-700/80 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">1</div>
+            <h3 class="font-bold text-slate-200">The Initial Pick</h3>
+            <p class="text-slate-400 text-xs leading-relaxed">
+              When you pick a door at the start, there is a <strong>1 in 3 chance (33.3%)</strong> that you picked the car, and a <strong>2 in 3 chance (66.7%)</strong> that the car is behind one of the other two doors.
+            </p>
+          </div>
+
+          <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-700/80 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">2</div>
+            <h3 class="font-bold text-slate-200">The Host's Constraint</h3>
+            <p class="text-slate-400 text-xs leading-relaxed">
+              Monty Hall knows where the car is. He <strong>must always reveal a goat</strong> from the unchosen doors. He is not choosing randomly; his knowledge forces him to keep the car safe if you picked a goat.
+            </p>
+          </div>
+
+          <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-700/80 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">3</div>
+            <h3 class="font-bold text-slate-200">Probability Transfer</h3>
+            <p class="text-slate-400 text-xs leading-relaxed">
+              Revealing a goat doesn't alter your initial 1/3 chance of being right. Instead, it shifts all 2/3 probability of the other two doors into the single remaining unopened door!
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="mt-16 text-center text-xs text-slate-400 border-t border-slate-800/80 pt-8">
+    <p>Monty Hall Problem Interactive Simulator • Designed for GitHub Pages</p>
+  </footer>
+
+  <script>
+    /* ==========================================================================
+       1. INTERACTIVE GAME STATE & LOGIC
+       ========================================================================== */
+    let winningDoor = 0;       // Index of door with Car (0, 1, or 2)
+    let selectedDoor = null;   // User's initial choice
+    let revealedGoatDoor = null; // Host's revealed goat door
+    let remainingDoor = null;  // Other unopened door
+    let gameState = 'PICK';    // 'PICK', 'DECIDE', 'FINISHED'
+
+    // Manual Game Score Tracker
+    let manualStats = {
+      stayWins: 0,
+      stayTotal: 0,
+      switchWins: 0,
+      switchTotal: 0
+    };
+
+    function initGame() {
+      gameState = 'PICK';
+      winningDoor = Math.floor(Math.random() * 3);
+      selectedDoor = null;
+      revealedGoatDoor = null;
+      remainingDoor = null;
+
+      // Reset Door Visuals
+      for (let i = 0; i < 3; i++) {
+        const doorInner = document.getElementById(`door-inner-${i}`);
+        const doorBadge = document.getElementById(`door-badge-${i}`);
+        const prizeIcon = document.getElementById(`door-prize-icon-${i}`);
+        const prizeText = document.getElementById(`door-prize-text-${i}`);
+
+        // Set prize content hidden on back of door
+        if (i === winningDoor) {
+          prizeIcon.textContent = '🚗';
+          prizeText.textContent = 'Sports Car!';
+          prizeText.className = 'text-xs font-bold uppercase tracking-wide text-emerald-400';
+        } else {
+          prizeIcon.textContent = '🐐';
+          prizeText.textContent = 'Goat';
+          prizeText.className = 'text-xs font-bold uppercase tracking-wide text-amber-400';
+        }
+
+        // Reset flip state
+        doorInner.classList.remove('rotate-y-180', 'door-glow-selected', 'door-glow-winner', 'door-glow-loser');
+        
+        // Reset badge
+        doorBadge.className = 'text-center mt-3 h-6 text-xs font-semibold px-2 py-0.5 rounded-full transition-all opacity-0';
+        doorBadge.textContent = '';
+      }
+
+      // Reset Dialogue & Buttons
+      document.getElementById('game-step-indicator').textContent = 'Step 1 of 3: Make Your Choice';
+      document.getElementById('host-dialogue').innerHTML = 
+        'Welcome to the game! Behind one door is a brand new <strong class="text-emerald-400">Sports Car 🚗</strong>, and behind the other two are <strong class="text-amber-400">Goats 🐐</strong>. Click a door to pick!';
+      document.getElementById('decision-panel').classList.add('hidden');
+    }
+
+    function handleDoorClick(doorIndex) {
+      if (gameState !== 'PICK') return;
+
+      selectedDoor = doorIndex;
+      gameState = 'DECIDE';
+
+      // Highlight selected door
+      const badge = document.getElementById(`door-badge-${selectedDoor}`);
+      badge.textContent = 'Your Selection';
+      badge.className = 'text-center mt-3 h-6 text-xs font-bold px-3 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/40 opacity-100 shadow-sm';
+      document.getElementById(`door-inner-${selectedDoor}`).classList.add('door-glow-selected');
+
+      // Host chooses a door with a goat to reveal
+      const availableGoatDoors = [];
+      for (let i = 0; i < 3; i++) {
+        if (i !== selectedDoor && i !== winningDoor) {
+          availableGoatDoors.push(i);
+        }
+      }
+      revealedGoatDoor = availableGoatDoors[Math.floor(Math.random() * availableGoatDoors.length)];
+
+      // Determine remaining door
+      for (let i = 0; i < 3; i++) {
+        if (i !== selectedDoor && i !== revealedGoatDoor) {
+          remainingDoor = i;
+        }
+      }
+
+      // Flip the host's goat door
+      setTimeout(() => {
+        document.getElementById(`door-inner-${revealedGoatDoor}`).classList.add('rotate-y-180');
+        const goatBadge = document.getElementById(`door-badge-${revealedGoatDoor}`);
+        goatBadge.textContent = 'Host Revealed Goat';
+        goatBadge.className = 'text-center mt-3 h-6 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 opacity-100';
+
+        // Update Host Dialogue & Decision UI
+        document.getElementById('game-step-indicator').textContent = 'Step 2 of 3: Stay or Switch?';
+        document.getElementById('host-dialogue').innerHTML = 
+          `I opened <strong>Door ${revealedGoatDoor + 1}</strong> and revealed a goat! Now, would you like to <strong>STAY</strong> with Door ${selectedDoor + 1} or <strong>SWITCH</strong> to Door ${remainingDoor + 1}?`;
+
+        document.getElementById('stay-btn-text').textContent = `STAY with Door ${selectedDoor + 1}`;
+        document.getElementById('switch-btn-text').textContent = `SWITCH to Door ${remainingDoor + 1}`;
+        document.getElementById('decision-panel').classList.remove('hidden');
+      }, 400);
+    }
+
+    function makeFinalDecision(didSwitch) {
+      if (gameState !== 'DECIDE') return;
+      gameState = 'FINISHED';
+
+      const finalDoor = didSwitch ? remainingDoor : selectedDoor;
+      const isWin = (finalDoor === winningDoor);
+
+      // Record Stats
+      if (didSwitch) {
+        manualStats.switchTotal++;
+        if (isWin) manualStats.switchWins++;
+      } else {
+        manualStats.stayTotal++;
+        if (isWin) manualStats.stayWins++;
+      }
+      updateManualStatsUI();
+
+      // Open remaining doors
+      for (let i = 0; i < 3; i++) {
+        document.getElementById(`door-inner-${i}`).classList.add('rotate-y-180');
+      }
+
+      // Visual Feedback
+      document.getElementById('decision-panel').classList.add('hidden');
+      document.getElementById('game-step-indicator').textContent = 'Step 3 of 3: Result Revealed';
+
+      const finalDoorInner = document.getElementById(`door-inner-${finalDoor}`);
+      if (isWin) {
+        finalDoorInner.classList.add('door-glow-winner');
+        document.getElementById('host-dialogue').innerHTML = 
+          `<span class="text-emerald-400 font-bold text-lg">🎉 YOU WON THE CAR!</span> You ${didSwitch ? 'SWITCHED' : 'STAYED'} and got the prize!`;
+        
+        // Trigger celebratory confetti
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } else {
+        finalDoorInner.classList.add('door-glow-loser');
+        document.getElementById('host-dialogue').innerHTML = 
+          `<span class="text-amber-400 font-bold text-lg">🐐 A GOAT!</span> You ${didSwitch ? 'SWITCHED' : 'STAYED'} and ended up with a goat. The car was behind Door ${winningDoor + 1}. Try again!`;
+      }
+    }
+
+    function updateManualStatsUI() {
+      document.getElementById('manual-stay-count').textContent = manualStats.stayTotal;
+      document.getElementById('manual-stay-pct').textContent = 
+        manualStats.stayTotal > 0 ? `${((manualStats.stayWins / manualStats.stayTotal) * 100).toFixed(1)}%` : '0%';
+
+      document.getElementById('manual-switch-count').textContent = manualStats.switchTotal;
+      document.getElementById('manual-switch-pct').textContent = 
+        manualStats.switchTotal > 0 ? `${((manualStats.switchWins / manualStats.switchTotal) * 100).toFixed(1)}%` : '0%';
+    }
+
+    /* ==========================================================================
+       2. AUTOMATED FAST SIMULATOR LOGIC
+       ========================================================================== */
+    let simStats = {
+      stayWins: 0,
+      stayTotal: 0,
+      switchWins: 0,
+      switchTotal: 0
+    };
+
+    function runAutomatedSimulation() {
+      const count = parseInt(document.getElementById('sim-batch-size').value, 10);
+
+      let batchStayWins = 0;
+      let batchSwitchWins = 0;
+
+      for (let i = 0; i < count; i++) {
+        const carIndex = Math.floor(Math.random() * 3);
+        const playerPick = Math.floor(Math.random() * 3);
+
+        // STAY strategy win condition: Player picked car initially
+        if (playerPick === carIndex) {
+          batchStayWins++;
+        }
+
+        // SWITCH strategy win condition: Player picked a goat initially
+        // (Host is forced to reveal the other goat, so switching guarantees the car!)
+        if (playerPick !== carIndex) {
+          batchSwitchWins++;
+        }
+      }
+
+      simStats.stayWins += batchStayWins;
+      simStats.stayTotal += count;
+      simStats.switchWins += batchSwitchWins;
+      simStats.switchTotal += count;
+
+      updateSimStatsUI();
+    }
+
+    function updateSimStatsUI() {
+      const stayPct = simStats.stayTotal > 0 ? (simStats.stayWins / simStats.stayTotal) * 100 : 0;
+      const switchPct = simStats.switchTotal > 0 ? (simStats.switchWins / simStats.switchTotal) * 100 : 0;
+
+      document.getElementById('sim-stay-pct-label').textContent = `${stayPct.toFixed(1)}%`;
+      document.getElementById('sim-stay-total').textContent = simStats.stayTotal.toLocaleString();
+      document.getElementById('sim-stay-wins').textContent = simStats.stayWins.toLocaleString();
+      document.getElementById('sim-stay-bar').style.width = `${Math.min(stayPct, 100)}%`;
+
+      document.getElementById('sim-switch-pct-label').textContent = `${switchPct.toFixed(1)}%`;
+      document.getElementById('sim-switch-total').textContent = simStats.switchTotal.toLocaleString();
+      document.getElementById('sim-switch-wins').textContent = simStats.switchWins.toLocaleString();
+      document.getElementById('sim-switch-bar').style.width = `${Math.min(switchPct, 100)}%`;
+    }
+
+    function resetSimStats() {
+      simStats = { stayWins: 0, stayTotal: 0, switchWins: 0, switchTotal: 0 };
+      updateSimStatsUI();
+    }
+
+    /* ==========================================================================
+       3. N-DOORS THOUGHT EXPERIMENT VISUALIZER
+       ========================================================================== */
+    function updateNDoorsVisualization(numDoors) {
+      document.getElementById('door-count-display').textContent = numDoors;
+      
+      const initialPct = (1 / numDoors) * 100;
+      const switchPct = ((numDoors - 1) / numDoors) * 100;
+
+      document.getElementById('n-door-initial-pct').textContent = `${initialPct.toFixed(1)}% (1/${numDoors})`;
+      document.getElementById('n-door-switch-pct').textContent = `${switchPct.toFixed(1)}% (${numDoors - 1}/${numDoors})`;
+
+      document.getElementById('n-doors-explanation').innerHTML = 
+        `With <strong>${numDoors} doors</strong>, picking the car on your first try gives you only a <strong>${initialPct.toFixed(1)}%</strong> chance. ` +
+        `The host then opens <strong>${numDoors - 2} goat doors</strong>. ` +
+        `Because the host knows where the car is, all the remaining probability (<strong>${switchPct.toFixed(1)}%</strong>) accumulates into the single remaining unopened door!`;
+
+      // Render Visual Grid of Doors
+      const container = document.getElementById('n-doors-grid');
+      container.innerHTML = '';
+
+      for (let i = 1; i <= numDoors; i++) {
+        const doorBox = document.createElement('div');
+        
+        // Highlight door 1 (your pick) and door numDoors (remaining switch door)
+        if (i === 1) {
+          doorBox.className = 'w-7 h-10 rounded border border-amber-400 bg-amber-500/20 flex items-center justify-center text-[10px] font-bold text-amber-300 shadow-sm';
+          doorBox.title = 'Your initial pick (1 door)';
+          doorBox.textContent = 'Pick';
+        } else if (i === numDoors) {
+          doorBox.className = 'w-7 h-10 rounded border border-emerald-400 bg-emerald-500/20 flex items-center justify-center text-[10px] font-bold text-emerald-300 shadow-sm';
+          doorBox.title = 'Remaining unopened door after host eliminates goats';
+          doorBox.textContent = 'Sw';
+        } else {
+          doorBox.className = 'w-7 h-10 rounded border border-slate-800 bg-slate-900/60 flex items-center justify-center text-[10px] text-slate-600 opacity-40';
+          doorBox.title = `Door ${i} (Eliminated Goat by Host)`;
+          doorBox.textContent = '🐐';
+        }
+        container.appendChild(doorBox);
+      }
+    }
+
+    /* ==========================================================================
+       4. INITIALIZATION ON PAGE LOAD
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      // Initialize Icons
+      lucide.createIcons();
+
+      // Attach reset button listener
+      document.getElementById('reset-game-btn').addEventListener('click', initGame);
+
+      // Start game & n-doors default view
+      initGame();
+      updateNDoorsVisualization(100);
+    });
+  </script>
+</body>
+</html>
